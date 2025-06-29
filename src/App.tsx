@@ -1,27 +1,66 @@
 import { useEffect, useState } from "react";
-import { useAuthenticator } from '@aws-amplify/ui-react';
-import type { Schema } from "../amplify/data/resource";
-import { generateClient } from "aws-amplify/data";
+import { useAuthenticator } from "@aws-amplify/ui-react";
+import { get, post, del } from "aws-amplify/api";
 
-
-const client = generateClient<Schema>();
+type Todo = {
+  id: string;
+  content: string;
+};
 
 function App() {
   const { user, signOut } = useAuthenticator();
-  const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
 
   useEffect(() => {
-    client.models.Todo.observeQuery().subscribe({
-      next: (data) => setTodos([...data.items]),
-    });
+    async function fetchTodos() {
+      try {
+        const restOp = get({
+          apiName: "myRestApi", // This must match restApiName in backend.ts
+          path: "/items", // Change from "/todos" to "/items"
+        });
+        const { body } = await restOp.response;
+        const data = await body.json();
+        setTodos(data);
+      } catch (err: any) {
+        console.error("Failed to fetch todos:", await err.response.body.text());
+      }
+    }
+
+    fetchTodos();
   }, []);
 
-  function createTodo() {
-    client.models.Todo.create({ content: window.prompt("Todo content") });
+  async function createTodo() {
+    const content = window.prompt("Todo content");
+    if (!content) return;
+
+    try {
+      const restOp = post({
+        apiName: "myRestApi",    // ✅ Correct
+        path: "/items",          // ✅ Correct
+        options: {
+          body: { content },
+        },
+      });
+
+      const { body } = await restOp.response;
+      const newTodo = await body.json();
+      setTodos((prev) => [...prev, newTodo]);
+    } catch (err: any) {
+      console.error("Create failed:", await err.response.body.text());
+    }
   }
 
-  function deleteTodo(id: string) {
-    client.models.Todo.delete({ id })
+  async function deleteTodo(id: string) {
+    try {
+      await del({
+        apiName: "myRestApi",    // ✅ Correct
+        path: `/items/${id}`,    // ✅ Correct
+      }).response;
+
+      setTodos((prev) => prev.filter((todo) => todo.id !== id));
+    } catch (err: any) {
+      console.error("Delete failed:", await err.response.body.text());
+    }
   }
 
   return (
@@ -30,15 +69,15 @@ function App() {
       <button onClick={createTodo}>+ new</button>
       <ul>
         {todos.map((todo) => (
-          <li key={todo.id} onClick={() => deleteTodo(todo.id)}>{todo.content}</li>
+          <li key={todo.id} onClick={() => deleteTodo(todo.id)}>
+            {todo.content}
+          </li>
         ))}
       </ul>
       <div>
-        🥳 App successfully hosted. Try creating a new todo.
+        ✅ Using REST API now. Try creating/deleting a todo.
         <br />
-        <a href="https://docs.amplify.aws/react/start/quickstart/#make-frontend-updates">
-          Review next step of this tutorial.
-        </a>
+        <a href="https://docs.amplify.aws/gen2/rest">REST API docs</a>
       </div>
       <button onClick={signOut}>Sign out</button>
     </main>
