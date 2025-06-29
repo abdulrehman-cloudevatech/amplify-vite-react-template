@@ -15,14 +15,17 @@ function App() {
     async function fetchTodos() {
       try {
         const restOp = get({
-          apiName: "myRestApi", // This must match restApiName in backend.ts
-          path: "/items", // Change from "/todos" to "/items"
+          apiName: "myRestApi",
+          path: "/items",
         });
         const { body } = await restOp.response;
         const data = await body.json();
-        setTodos(data);
+        if (Array.isArray(data)) {
+          const filtered = data.filter((item): item is Todo => item !== null);
+          setTodos(filtered);
+        }
       } catch (err: any) {
-        console.error("Failed to fetch todos:", await err.response.body.text());
+        console.error("Failed to fetch todos:", await err.response?.body?.text?.());
       }
     }
 
@@ -35,8 +38,8 @@ function App() {
 
     try {
       const restOp = post({
-        apiName: "myRestApi",    // ✅ Correct
-        path: "/items",          // ✅ Correct
+        apiName: "myRestApi",
+        path: "/items",
         options: {
           body: { content },
         },
@@ -44,22 +47,25 @@ function App() {
 
       const { body } = await restOp.response;
       const newTodo = await body.json();
-      setTodos((prev) => [...prev, newTodo]);
+
+      if (newTodo && typeof newTodo === "object" && "id" in newTodo && "content" in newTodo) {
+        setTodos((prev) => [...prev, newTodo as Todo]);
+      }
     } catch (err: any) {
-      console.error("Create failed:", await err.response.body.text());
+      console.error("Create failed:", await err.response?.body?.text?.());
     }
   }
 
   async function deleteTodo(id: string) {
     try {
       await del({
-        apiName: "myRestApi",    // ✅ Correct
-        path: `/items/${id}`,    // ✅ Correct
+        apiName: "myRestApi",
+        path: `/items/${id}`,
       }).response;
 
       setTodos((prev) => prev.filter((todo) => todo.id !== id));
     } catch (err: any) {
-      console.error("Delete failed:", await err.response.body.text());
+      console.error("Delete failed:", await err.response?.body?.text?.());
     }
   }
 
