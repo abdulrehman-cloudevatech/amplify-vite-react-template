@@ -1,5 +1,5 @@
 import { defineBackend } from "@aws-amplify/backend";
-import { Stack } from "aws-cdk-lib";
+import { Stack, RemovalPolicy } from "aws-cdk-lib";
 import {
   AuthorizationType,
   CognitoUserPoolsAuthorizer,
@@ -8,6 +8,7 @@ import {
   RestApi,
 } from "aws-cdk-lib/aws-apigateway";
 import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { Table, AttributeType, BillingMode } from "aws-cdk-lib/aws-dynamodb";
 import { myApiFunction } from "./functions/api-function/resource";
 import { auth } from "./auth/resource";
 
@@ -18,6 +19,17 @@ const backend = defineBackend({
 
 // create a new API stack
 const apiStack = backend.createStack("api-stack");
+
+// create DynamoDB table for todos
+const todoTable = new Table(apiStack, "TodoTable", {
+  tableName: "TodoTable",
+  partitionKey: {
+    name: "id",
+    type: AttributeType.STRING,
+  },
+  billingMode: BillingMode.PAY_PER_REQUEST,
+  removalPolicy: RemovalPolicy.DESTROY, // For development - change to RETAIN for production
+});
 
 // create a new REST API
 const myRestApi = new RestApi(apiStack, "RestApi", {
